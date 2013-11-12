@@ -443,4 +443,15 @@ procdump(void)
   }
 }
 
+//kaichen
+int testing(void){
+  return 8080;
+}
 
+int clone(void){
+  return 7000;
+}
+
+int join(void){
+  return 6000;
+}

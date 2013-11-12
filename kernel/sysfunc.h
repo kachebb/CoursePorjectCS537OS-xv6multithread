@@ -23,5 +23,9 @@ int sys_unlink(void);
 int sys_wait(void);
 int sys_write(void);
 int sys_uptime(void);
+//kaichen
+int sys_testing(void);
+int sys_clone(void);
+int sys_join(void);
 
 #endif // _SYSFUNC_H_

@@ -88,3 +88,17 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+//kaichen
+int sys_testing()
+{
+  return testing();
+}
+
+int sys_clone(){
+  return clone();
+}
+
+int sys_join(){
+  return join();
+}
