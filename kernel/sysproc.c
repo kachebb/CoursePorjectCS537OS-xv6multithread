@@ -96,7 +96,24 @@ int sys_testing()
 }
 
 int sys_clone(){
-  return clone();
+
+  void *stack;
+  void *arg;
+  void (*fcn)(void*);
+  char *temp1, *temp2, *temp3;
+  if(argptr(0, &temp1, sizeof(fcn)) < 0 )
+    return -1;
+  fcn = (void*) temp1;
+
+  if(argptr(1, &temp2, sizeof(void*))< 0)
+    return -1;
+  arg = (void*) temp2;
+
+  if(argptr(2, &temp3, sizeof(void*))< 0)
+    return -1;  
+  stack = (void*)temp3;
+  int ret = clone( fcn, arg, stack);
+  return ret;
 }
 
 int sys_join(){

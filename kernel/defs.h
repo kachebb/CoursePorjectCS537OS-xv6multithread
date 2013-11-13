@@ -111,7 +111,7 @@ void            wakeup(void*);
 void            yield(void);
 //kaichen
 int             testing(void);
-int             clone(void); 
+int             clone(void(*fcn)(void*), void *arg, void*stack); 
 int             join(void);
 
 

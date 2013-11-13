@@ -57,7 +57,6 @@ found:
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -70,6 +69,7 @@ found:
 
   return p;
 }
+
 
 // Set up first user process.
 void
@@ -448,8 +448,67 @@ int testing(void){
   return 8080;
 }
 
-int clone(void){
-  return 7000;
+int clone(void(*fcn)(void*), void *arg, void*stack){
+  int i, pid;
+  struct proc *np;
+  //kaichen
+  uint argc,sp, ustack[3+MAXARG+1];
+
+  // Allocate process.
+  if((np = allocproc()) == 0)
+    return -1;
+
+  //thread use parent's page directory
+  np->pgdir = proc->pgdir;
+  kfree(np->kstack);
+
+  //pass new exe entry to proc
+  proc->tf->eip = (uint)fcn;  // main
+ 
+ //move argument to stack
+  argc = 1;
+  sp = (uint)stack; // stack from user's malloc but this is its va
+  sp -=sizeof(arg); 
+  sp &= ~3;
+
+  if(copyout(np->pgdir, sp, arg, sizeof(arg)) < 0)
+    goto bad;
+  
+  ustack[3+argc] = 0;
+  ustack[0] = 0xffffffff;  // fake return PC
+  ustack[1] = argc;
+  ustack[2] = sp - (argc+1)*4;  // argv pointer
+  sp -= (3+argc+1) * 4;
+
+  if(copyout(np->pgdir, sp, ustack, (3+argc+1)*4) < 0)
+    goto bad;
+
+  proc->tf->esp = sp;
+  
+  np->sz = proc->sz;
+  np->parent = proc;
+  *np->tf = *proc->tf;
+
+  // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+  
+  for(i = 0; i < NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i] = filedup(proc->ofile[i]);
+  np->cwd = idup(proc->cwd);
+ 
+  pid = np->pid;
+  np->state = RUNNABLE;
+  safestrcpy(np->name, proc->name, sizeof(proc->name));
+  switchuvm(proc);
+
+  // cprintf("after switchuvm\n");
+
+  return pid;
+
+ bad:
+  return -1;
+
 }
 
 int join(void){

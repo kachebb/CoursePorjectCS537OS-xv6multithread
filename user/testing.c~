@@ -1,0 +1,15 @@
+#include "types.h"
+#include "stat.h"
+#include "user.h"
+
+int
+main(int argc, char **argv)
+{
+  int i = testing(); 
+  printf(1, "value from syscall:%d\n",i);
+  int c = clone();
+  printf(1, "value from clone:%d\n", c);
+  int j = join();
+  printf(1, "value from join:%d\n",j);
+  exit();
+}
