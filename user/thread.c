@@ -34,15 +34,16 @@ void lock_release(lock_t *lk){
 }
 
 void cv_wait(cond_t *cv, lock_t *lk){ 
-  while(xchg(&cv->cond,1) == 1){
+  while(xchg(&cv->cond,0) == 0){
     printf(1, "in cv_wait goling to sleep\n");
      lock_release(lk);
      t_sleep();
   }
+  printf(1,"in cv after sleep\n");
   lock_acquire(lk);
 }
 
 void cv_signal(cond_t *cv){
   t_wakeup();
-  xchg(&cv->cond, 0);
+  xchg(&cv->cond, 1);
 }
