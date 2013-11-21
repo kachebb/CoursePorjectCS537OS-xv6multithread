@@ -27,7 +27,7 @@ int sleep(int);
 int uptime(void);
 int testing(void);
 int clone(void(*fcn)(void*), void *arg, void*stack);
-int join(void);
+int join(void **stack);
 
 // user library functions (ulib.c)
 int stat(char*, struct stat*);

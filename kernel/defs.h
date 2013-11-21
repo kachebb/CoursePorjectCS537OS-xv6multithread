@@ -112,7 +112,8 @@ void            yield(void);
 //kaichen
 int             testing(void);
 int             clone(void(*fcn)(void*), void *arg, void*stack); 
-int             join(void);
+//int             clone(int *fcn, int *arg, int *stack);
+int             join(void **stack);
 
 
 // swtch.S

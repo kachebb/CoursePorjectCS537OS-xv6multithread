@@ -96,26 +96,49 @@ int sys_testing()
 }
 
 int sys_clone(){
-
-  void *stack;
-  void *arg;
-  void (*fcn)(void*);
+ 
+  int *stack;
+  int *arg;
+  typedef  void (*fcn)(void*);
+  //  int *fcn;
+ 
+  // char *buffer;//
   char *temp1, *temp2, *temp3;
   if(argptr(0, &temp1, sizeof(fcn)) < 0 )
     return -1;
-  fcn = (void*) temp1;
-
-  if(argptr(1, &temp2, sizeof(void*))< 0)
+  fcn t = (fcn) temp1;
+  /*
+  // memcpy(temp, buffer)
+  t = (fcn)buffer;
+  arg = (void *)(buffer + 4);
+  stack = (void *)(buffer + 5);
+  */
+  
+  if(argptr(1, &temp2, sizeof(char*))< 0)
     return -1;
-  arg = (void*) temp2;
-
-  if(argptr(2, &temp3, sizeof(void*))< 0)
-    return -1;  
-  stack = (void*)temp3;
-  int ret = clone( fcn, arg, stack);
+  arg = (int*) temp2;
+  // arg = temp1 + sizeof(fcn);
+  if(argptr(2, &temp3, sizeof(char*))< 0)
+    return -1;
+  stack = (int*)temp3;
+  // cprintf("1:%s,\n2:%s,\n3:%s,\n", *temp1, *temp2,*temp3);
+  int ret = clone( t, arg, stack);
+  if((uint)stack%PGSIZE != 0)
+    return -1;
   return ret;
 }
 
 int sys_join(){
-  return join();
+  char *temp;
+  if(argptr(0, &temp, sizeof(char*))< 0)
+    return -1;
+  
+  /*
+  int i;
+  int **st;
+  if(argint(0, &i)<0)
+    return -1;
+  st = (int **)i;
+  */
+  return join((void **) temp);
 }

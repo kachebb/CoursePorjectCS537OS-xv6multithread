@@ -159,18 +159,20 @@ fork(void)
   return pid;
 }
 
+
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
 void
 exit(void)
 {
+  // procdump();
   struct proc *p;
   int fd;
-
   if(proc == initproc)
     panic("init exiting");
-
+  cprintf("proc exit\n");
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
     if(proc->ofile[fd]){
@@ -192,15 +194,18 @@ exit(void)
     if(p->parent == proc){
       p->parent = initproc;
       if(p->state == ZOMBIE)
-        wakeup1(initproc);
+	wakeup1(initproc);
     }
   }
-
-  // Jump into the scheduler, never to return.
-  proc->state = ZOMBIE;
-  sched();
-  panic("zombie exit");
+ // Jump into the scheduler, never to return.
+    proc->state = ZOMBIE;
+    //kaichen
+    //procdump();
+    sched();
+    panic("zombie exit");
 }
+
+
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
@@ -209,37 +214,46 @@ wait(void)
 {
   struct proc *p;
   int havekids, pid;
-
+  
+  cprintf("wait called\n");
   acquire(&ptable.lock);
   for(;;){
+    //procdump();
     // Scan through table looking for zombie children.
     havekids = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != proc)
         continue;
+      //  if( p->pgdir == proc->pgdir){
+      if(p->isthread == 1){
+	cprintf("is a thread\n");
+	continue;
+      }
+      // cprintf("pid%d, parentpid%d", p->pid, p->parent->pid);
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
-        pid = p->pid;
-        kfree(p->kstack);
-        p->kstack = 0;
-        freevm(p->pgdir);
-        p->state = UNUSED;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        release(&ptable.lock);
-        return pid;
+	pid = p->pid;
+	kfree(p->kstack);
+	p->kstack = 0;
+	freevm(p->pgdir);
+	p->state = UNUSED;
+	p->pid = 0;
+	p->parent = 0;
+	p->name[0] = 0;
+	p->killed = 0;
+	release(&ptable.lock);
+	return pid;     
       }
     }
 
     // No point waiting if we don't have any children.
     if(!havekids || proc->killed){
+      cprintf("no child\n");
       release(&ptable.lock);
       return -1;
     }
-
+    cprintf("have kids\n");
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
@@ -273,6 +287,9 @@ scheduler(void)
       proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      //KAICHEN
+      // cprintf("currPID:%d\n", p->pid);
+
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
 
@@ -433,7 +450,7 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+    cprintf("%d %s %s %d, %p", p->pid, state, p->name,p->isthread, p->parent);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
@@ -448,69 +465,190 @@ int testing(void){
   return 8080;
 }
 
-int clone(void(*fcn)(void*), void *arg, void*stack){
+
+
+int clone(void(*fcn)(void*), void *arg, void*stack){ 
   int i, pid;
   struct proc *np;
-  //kaichen
-  uint argc,sp, ustack[3+MAXARG+1];
-
+  // uint ustack[3+MAXARG+1];
+  //  if((uint)(stack) < 4096*3) return -1;
+  
+  //--------------------FORK part***********************
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
-
-  //thread use parent's page directory
+  
+   //thread use parent's page directory
   np->pgdir = proc->pgdir;
-  kfree(np->kstack);
-
-  //pass new exe entry to proc
-  proc->tf->eip = (uint)fcn;  // main
- 
- //move argument to stack
-  argc = 1;
-  sp = (uint)stack; // stack from user's malloc but this is its va
-  sp -=sizeof(arg); 
-  sp &= ~3;
-
-  if(copyout(np->pgdir, sp, arg, sizeof(arg)) < 0)
-    goto bad;
-  
-  ustack[3+argc] = 0;
-  ustack[0] = 0xffffffff;  // fake return PC
-  ustack[1] = argc;
-  ustack[2] = sp - (argc+1)*4;  // argv pointer
-  sp -= (3+argc+1) * 4;
-
-  if(copyout(np->pgdir, sp, ustack, (3+argc+1)*4) < 0)
-    goto bad;
-
-  proc->tf->esp = sp;
-  
+  // kfree(np->kstack);
+  //np->kstack = stack;
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
-
-  // Clear %eax so that fork returns 0 in the child.
+  np->isthread = 1;
+  np->th_stack = stack;
+ 
+   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
+
+  for(i = 0; i < NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i] = filedup(proc->ofile[i]);
+  np->cwd = idup(proc->cwd);
+ 
+  //-***********************EXEC PART***************************
+ //move argument to stack
+  //copy stack:some inits
+  //uint argc = 0;        //one arg
+  uint sp, ustack[2];
+  sp = (uint)stack+PGSIZE;
+  //exec.c:push args
+  ustack[0] = 0xffffffff;  // fake return PC
+  ustack[1] = (uint)arg;        //store arg not its value
+
+  sp -= 2*sizeof(uint); //2=>return,arg;1=>sp,move sp to leave space
+  if(copyout(np->pgdir, sp, ustack, 2*sizeof(uint)) < 0)
+    goto bad;
+  //end copy stack
+
   
+  np->tf->esp =sp;//(uint)(stack);
+  /*// np->kstack =(char*) stack;
+  ustack[0] = 0xfffffff;  // fake return PC
+  ustack[1] = (uint)arg;
+
+  np->tf->esp -= 2*sizeof(uint);
+  if(copyout(np->pgdir,(uint)stack-2*sizeof(uint), ustack, 2*sizeof(uint)) < 0) {
+    cprintf("Copyout failed.\n");
+    goto bad;
+    }*/
+  //commit to the user image
+  //pass new exe entry to proc
+  cprintf("before change main:%p\n",np->tf->eip);
+  np->tf->eip = (uint)fcn;  // main
+  cprintf("inclone after change :%p\n", np->tf->eip);
+  switchuvm(np);
+  // np->context = proc->context;
+  // cprintf("after switchuvm\n");
+ 
+  pid = np->pid;
+  np->state = RUNNABLE;// this should be at the end
+  safestrcpy(np->name, proc->name, sizeof(proc->name));
+  cprintf("thread pid:%d\n",pid);
+  //  procdump();
+  return pid;
+
+ bad:
+  cprintf("bad\n");
+  return -1;
+
+}
+
+//int clone(void(*fcn)(void*), void *arg, void*stack){
+int clone1(int *fcn, int *arg, int *stack){  
+  int i, pid;
+  struct proc *np;
+  uint ustack[3+MAXARG+1];
+  //  if((uint)(stack) < 4096*3) return -1;
+  
+  //--------------------FORK part***********************
+  // Allocate process.
+  if((np = allocproc()) == 0)
+    return -1;
+  
+   //thread use parent's page directory
+  np->pgdir = proc->pgdir;
+  // kfree(np->kstack);
+  //np->kstack = stack;
+  np->sz = proc->sz;
+  np->parent = proc;
+  *np->tf = *proc->tf;
+  np->isthread = 1;
+  np->th_stack = stack;
+ 
+ 
+  //-***********************EXEC PART***************************
+ //move argument to stack
+ 
+  np->tf->esp =(uint)(stack);
+  // np->kstack =(char*) stack;
+  ustack[0] = 0xfffffff;  // fake return PC
+  ustack[1] = (uint)arg;
+
+  np->tf->esp -= 2*sizeof(uint);
+  if(copyout(np->pgdir,(uint)stack-2*sizeof(uint), ustack, 2*sizeof(uint)) < 0) {
+    cprintf("Copyout failed.\n");
+    goto bad;
+  }
+  //commit to the user image
+  //pass new exe entry to proc
+  cprintf("before change main:%p\n",np->tf->eip);
+  np->tf->eip = (uint)fcn;  // main
+  cprintf("inclone after change :%p\n", np->tf->eip);
+  switchuvm(np);
+  // np->context = proc->context;
+  // cprintf("after switchuvm\n");
+
+ // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+
   for(i = 0; i < NOFILE; i++)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
  
   pid = np->pid;
-  np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
-  switchuvm(proc);
-
-  // cprintf("after switchuvm\n");
-
+  np->state = RUNNABLE;// this should be at the end
+  cprintf("thread pid:%d\n",pid);
+  //  procdump();
   return pid;
 
  bad:
+  cprintf("bad\n");
   return -1;
 
 }
 
-int join(void){
-  return 6000;
+
+int join(void **stack){
+  struct proc *p;
+  int havekids, pid;
+
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for zombie children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != proc)
+        continue;
+      if(p->pgdir == proc->pgdir)
+	havekids = 1;
+      else continue;
+      if(p->state == ZOMBIE || p->killed == 1){
+	*stack = p->th_stack;
+        // Found one.
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+	//  freevm(p->pgdir);
+        p->state = UNUSED;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || proc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(proc, &ptable.lock);  //DOC: wait-sleep
+  }
 }
