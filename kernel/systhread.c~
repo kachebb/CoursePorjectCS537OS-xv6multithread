@@ -1,0 +1,17 @@
+#include "types.h"
+#include "x86.h"
+#include "defs.h"
+#include "param.h"
+#include "mmu.h"
+#include "proc.h"
+#include "sysfunc.h"
+
+int sys_thread_create(void)
+{
+  typedef  void (*start_routine)(void*);
+  start_routine t;
+  int c;
+  void *arg = &c; 
+  return thread_create(t, c);
+
+}

@@ -27,5 +27,11 @@ int sys_uptime(void);
 int sys_testing(void);
 int sys_clone(void);
 int sys_join(void);
+//cv
+int sys_t_wakeup(void);
+int sys_t_sleep(void);
+
+//thread
+//int sys_thread_create(void);
 
 #endif // _SYSFUNC_H_

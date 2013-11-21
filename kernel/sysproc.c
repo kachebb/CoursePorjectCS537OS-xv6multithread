@@ -123,8 +123,6 @@ int sys_clone(){
   stack = (int*)temp3;
   // cprintf("1:%s,\n2:%s,\n3:%s,\n", *temp1, *temp2,*temp3);
   int ret = clone( t, arg, stack);
-  if((uint)stack%PGSIZE != 0)
-    return -1;
   return ret;
 }
 
@@ -141,4 +139,18 @@ int sys_join(){
   st = (int **)i;
   */
   return join((void **) temp);
+}
+
+int sys_t_sleep(void){
+  acquire(&tickslock);
+ 
+  sleep(&ticks, &tickslock);
+
+  release(&tickslock);
+  return 1;
+}
+
+int sys_t_wakeup(void){
+  t_wakeup(&ticks);
+  return 1;
 }

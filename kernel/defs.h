@@ -114,7 +114,8 @@ int             testing(void);
 int             clone(void(*fcn)(void*), void *arg, void*stack); 
 //int             clone(int *fcn, int *arg, int *stack);
 int             join(void **stack);
-
+void            t_sleep(void*);
+void            t_wakeup(void*);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -174,6 +175,9 @@ pde_t*          copyuvm(pde_t*, uint);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
+
+//thread.c
+//int              thread_create(void (*start_routine)(void*), void *arg);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

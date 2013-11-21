@@ -652,3 +652,31 @@ int join(void **stack){
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
 }
+
+
+//sleep a thread;
+void t_sleep(void *chan){
+  acquire(&ptable.lock);
+  // Go to sleep.
+  proc->chan = chan;
+  proc->state = SLEEPING;
+  sched();
+  // Tidy up.
+  proc->chan = 0;
+}
+
+//wake up a thread
+// imitate wakeup1()
+// --this cannot make sure the thread we wake up is under the same process
+void t_wakeup(void *chan)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state == SLEEPING && p->chan == chan){
+        if(p->isthread == 1)
+	  p->state = RUNNABLE;
+        break;
+    }
+  release(&ptable.lock);
+}

@@ -1,0 +1,9 @@
+#ifndef _THREAD_H_
+#define _THREAD_H_
+
+
+struct __lock_t{
+  uint locked;
+};
+
+#endif

@@ -1,7 +1,14 @@
 #ifndef _USER_H_
 #define _USER_H_
-
+#include "thread.h"
 struct stat;
+//typedef struct __lock_t lock_t;
+
+/*
+typedef struct __lock_t{
+  uint locked;
+}lock_t;
+*/
 
 // system calls
 int fork(void);
@@ -25,9 +32,13 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+
+//kaichen
 int testing(void);
 int clone(void(*fcn)(void*), void *arg, void*stack);
 int join(void **stack);
+int t_sleep(void);
+int t_wakeup(void);
 
 // user library functions (ulib.c)
 int stat(char*, struct stat*);
@@ -43,5 +54,13 @@ void* malloc(uint);
 void free(void*);
 int atoi(const char*);
 
+//thread lib
+int thread_create(void (*start_routine)(void*) , void *arg);
+int thread_join();
+void lock_init(lock_t*);
+void lock_acquire(lock_t*);
+void lock_release(lock_t*);
+void cv_wait(cond_t*, lock_t*);
+void cv_signal(cond_t*);
 #endif // _USER_H_
 

@@ -27,4 +27,7 @@
 #define SYS_testing 22
 #define SYS_clone 23
 #define SYS_join 24
+#define SYS_t_wakeup 25
+#define SYS_t_sleep 26
+
 #endif // _SYSCALL_H_
